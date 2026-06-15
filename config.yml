@@ -1,0 +1,153 @@
+package me.zyro.serverachievements;
+
+import org.bukkit.*;
+import org.bukkit.advancement.Advancement;
+import org.bukkit.block.Beacon;
+import org.bukkit.configuration.file.FileConfiguration;
+import org.bukkit.entity.EnderDragon;
+import org.bukkit.entity.Player;
+import org.bukkit.event.EventHandler;
+import org.bukkit.event.Listener;
+import org.bukkit.event.block.BlockPlaceEvent;
+import org.bukkit.event.entity.EntityDeathEvent;
+import org.bukkit.event.inventory.InventoryCloseEvent;
+import org.bukkit.inventory.Inventory;
+import org.bukkit.inventory.ItemStack;
+import org.bukkit.Material;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.*;
+
+public final class ServerAchievements extends JavaPlugin implements Listener {
+
+    private final Set<Material> MUSIC_DISCS = Set.of(
+            Material.MUSIC_DISC_11,
+            Material.MUSIC_DISC_13,
+            Material.MUSIC_DISC_5,
+            Material.MUSIC_DISC_BLOCKS,
+            Material.MUSIC_DISC_CAT,
+            Material.MUSIC_DISC_CHIRP,
+            Material.MUSIC_DISC_FAR,
+            Material.MUSIC_DISC_MALL,
+            Material.MUSIC_DISC_MELLOHI,
+            Material.MUSIC_DISC_OTHERSIDE,
+            Material.MUSIC_DISC_PIGSTEP,
+            Material.MUSIC_DISC_RELIC,
+            Material.MUSIC_DISC_STAL,
+            Material.MUSIC_DISC_STRAD,
+            Material.MUSIC_DISC_WAIT,
+            Material.MUSIC_DISC_WARD,
+            Material.MUSIC_DISC_CREATOR,
+            Material.MUSIC_DISC_CREATOR_MUSIC_BOX,
+            Material.MUSIC_DISC_PRECIPICE
+    );
+
+    @Override
+    public void onEnable() {
+        saveDefaultConfig();
+        Bukkit.getPluginManager().registerEvents(this, this);
+    }
+
+    @EventHandler
+    public void onDragonDeath(EntityDeathEvent e) {
+
+        if (!(e.getEntity() instanceof EnderDragon)) return;
+        if (getConfig().getBoolean("achievements.first_dragon.completed")) return;
+
+        Player killer = e.getEntity().getKiller();
+        if (killer == null) return;
+
+        unlockAchievement(
+                "first_dragon",
+                killer,
+                "🐉 FIRST DRAGON SLAYER",
+                ChatColor.LIGHT_PURPLE + killer.getName() +
+                        ChatColor.GOLD + " became the first player to kill the Ender Dragon!"
+        );
+    }
+
+    @EventHandler
+    public void onBeaconPlace(BlockPlaceEvent e) {
+
+        if (!(e.getBlockPlaced().getState() instanceof Beacon)) return;
+        if (getConfig().getBoolean("achievements.first_beacon.completed")) return;
+
+        unlockAchievement(
+                "first_beacon",
+                e.getPlayer(),
+                "✨ FIRST BEACON",
+                ChatColor.AQUA + e.getPlayer().getName() +
+                        ChatColor.GOLD + " placed the first Beacon on the server!"
+        );
+    }
+
+    @EventHandler
+    public void onInventoryClose(InventoryCloseEvent e) {
+
+        if (!(e.getPlayer() instanceof Player player)) return;
+        if (getConfig().getBoolean("achievements.music_master.completed")) return;
+
+        Inventory inv = player.getInventory();
+
+        Set<Material> found = new HashSet<>();
+
+        for (ItemStack item : inv.getContents()) {
+
+            if (item == null) continue;
+
+            if (MUSIC_DISCS.contains(item.getType())) {
+                found.add(item.getType());
+            }
+        }
+
+        if (found.containsAll(MUSIC_DISCS)) {
+
+            unlockAchievement(
+                    "music_master",
+                    player,
+                    "🎵 MUSIC MASTER",
+                    ChatColor.GREEN + player.getName() +
+                            ChatColor.GOLD + " became the first player to collect every music disc!"
+            );
+        }
+    }
+
+    private void unlockAchievement(String id, Player player, String title, String announcement) {
+
+        FileConfiguration cfg = getConfig();
+
+        cfg.set("achievements." + id + ".completed", true);
+        cfg.set("achievements." + id + ".player", player.getUniqueId().toString());
+        cfg.set("achievements." + id + ".name", player.getName());
+        cfg.set("achievements." + id + ".timestamp", System.currentTimeMillis());
+
+        saveConfig();
+
+        Bukkit.broadcastMessage("");
+        Bukkit.broadcastMessage(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        Bukkit.broadcastMessage(ChatColor.GOLD + "🏆 SERVER ACHIEVEMENT UNLOCKED");
+        Bukkit.broadcastMessage(ChatColor.YELLOW + title);
+        Bukkit.broadcastMessage(announcement);
+        Bukkit.broadcastMessage(ChatColor.DARK_GRAY + "▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬▬");
+        Bukkit.broadcastMessage("");
+
+        Bukkit.getOnlinePlayers().forEach(p -> {
+            p.playSound(
+                    p.getLocation(),
+                    Sound.UI_TOAST_CHALLENGE_COMPLETE,
+                    1.0f,
+                    1.0f
+            );
+        });
+
+        Bukkit.getServer().dispatchCommand(
+                Bukkit.getConsoleSender(),
+                "title @a title {\"text\":\"" + title + "\",\"color\":\"gold\"}"
+        );
+
+        Bukkit.getServer().dispatchCommand(
+                Bukkit.getConsoleSender(),
+                "title @a subtitle {\"text\":\"" + player.getName() + "\",\"color\":\"yellow\"}"
+        );
+    }
+}
