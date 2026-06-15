@@ -1,4 +1,4 @@
-package me.zyro.serverachievements;
+package me.(server).serverachievements;
 
 import org.bukkit.*;
 import org.bukkit.advancement.Advancement;
